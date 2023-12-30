@@ -18,6 +18,7 @@ func init() {
 	}
 
 }
+
 func main() {
 	botToken := os.Getenv("BOT_TOKEN")
 	bot, err := tgbotapi.NewBotAPI(botToken)
@@ -26,24 +27,90 @@ func main() {
 	}
 
 	bot.Debug = true
+	updateConfig := tgbotapi.NewUpdate(0)
+	updateConfig.AllowedUpdates = []string{"true"}
+	updateConfig.Timeout = 60
 
-	log.Printf("Authorized on account %s", bot.Self.UserName)
+	updates := bot.GetUpdatesChan(updateConfig)
+	// log.Printf("Authorized on account %s", bot.Self.UserName)
 
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 5
+	go func() {
+		for update := range updates {
+			if update.CallbackQuery != nil {
+				buttonClicked := update.CallbackQuery.Data
+				userClickedID := update.CallbackQuery.Message.Chat.ID
+				emoji18 := "🎬"
 
-	updates := bot.GetUpdatesChan(u)
+				fmt.Println("--- BUTTON CLICKED --- ", buttonClicked)
+				fmt.Println("--- BUTTON USERCLICKEDID --- ", userClickedID)
+				switch buttonClicked {
+				case "button_vip":
+					msg := tgbotapi.NewMessage(userClickedID, "Temos esses planos para quem quer ser VIP \n\nVIP Silver - 1 Mês de Acesso VIP + Grupo Bônus R$14,99 \n\nVIP Premium - Mês de Acesso VIP + Grupo Bônus R$39,99 \n\nVIP Diamond - Acesso Vitalicio VIP + Grupo Bônus + Chat"+emoji18+" R$60,00")
+					buttonVIP := tgbotapi.NewInlineKeyboardMarkup(
+						tgbotapi.NewInlineKeyboardRow(
+							tgbotapi.NewInlineKeyboardButtonData("PLANO VIP SILVER", "button_vip"),
+						),
+						tgbotapi.NewInlineKeyboardRow(
+							tgbotapi.NewInlineKeyboardButtonData("PLANO VIP PREMIUM", "button_duvidas"),
+						),
+						tgbotapi.NewInlineKeyboardRow(
+							tgbotapi.NewInlineKeyboardButtonData("PLANO VIP DIAMOND", "button_suporte"),
+						),
+					)
+
+					msg.ReplyMarkup = buttonVIP
+
+					_, err := bot.Send(msg)
+					if err != nil {
+						fmt.Print("err")
+					}
+				default:
+					fmt.Print("HA HA HA ")
+				}
+			}
+		}
+	}()
 
 	for update := range updates {
 		if update.Message != nil {
 			userID := update.Message.From.ID
-			msg := tgbotapi.NewMessage(userID, "Seu plano está espirando")
+			emoji := "✅"
+			msg := tgbotapi.NewMessage(userID, "Quer fazer parte do grupo EXTRAS VIP? \n\n"+
+				emoji+"Canal VIP com conteúdos completos de mais de 500 Filmes (conteúdo diário e atualizado)\n\n"+
+				emoji+"Canal organizado por nome de cada Filme. (fácil de encontra o que procura)\n\n"+
+				emoji+"Informações sobre atores (Principais noticias do mundo dos famosos)\n\n"+
+				emoji+"Solicitar conteúdo de filmes especificos (sugerir ao Adm algum Filme ou Serie suporte 24h)")
+			btn := tgbotapi.NewInlineKeyboardMarkup(
+				tgbotapi.NewInlineKeyboardRow(
+					tgbotapi.NewInlineKeyboardButtonData("QUERO SER VIP", "button_vip"),
+				),
+				tgbotapi.NewInlineKeyboardRow(
+					tgbotapi.NewInlineKeyboardButtonData("TENHO DÚVIDAS", "button_duvidas"),
+				),
+				tgbotapi.NewInlineKeyboardRow(
+					tgbotapi.NewInlineKeyboardButtonData("FALAR COM SUPORTE", "button_suporte"),
+				),
+			)
 
-			msg.DisableWebPagePreview = true
+			msg.ReplyMarkup = btn
 
 			_, err := bot.Send(msg)
 			if err != nil {
-				log.Fatal("tua prima")
+				log.Fatal("panic")
+			}
+
+			if update.CallbackQuery != nil {
+				if update.CallbackQuery.Data == "button_pressed" {
+					link := "https://jsonformatter.curiousconcept.com"
+					msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "here's the link: "+link)
+
+					msg.ParseMode = tgbotapi.ModeMarkdown
+					msg.DisableWebPagePreview = true
+					_, err := bot.Send(msg)
+					if err != nil {
+						log.Fatal("mensagem não enviada")
+					}
+				}
 			}
 		}
 	}
